@@ -7,6 +7,7 @@ services:
     environment:
       ETHSCAN_KEY: ''
       INFURA: ''
+      SUBSCAN_API_KEY: ''
       GIN_MODE: 'release'
     ports:
       - '5344:5344'

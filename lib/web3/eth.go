@@ -89,7 +89,7 @@ func (e *eth) Event(v interface{}, start int64, to int64, address string, topic 
 	// 	q.Add("topic0_1_opr", "or")
 	// 	q.Add("topic1", topic[1])
 	// }
-	q.Add("apikey", util.GetEnv("ETHSCAN_KEY", "G78R6SGMHGXSMXZCBDW8WE716YQFQGJ68F"))
+	q.Add("apikey", util.GetEnv("ETHSCAN_KEY", ""))
 	//fmt.Println(fmt.Sprintf("%s%s", etherscan, q.Encode()))
 	response, err := util.HttpGet(fmt.Sprintf("%s%s", etherscan, q.Encode()))
 	if err != nil {
