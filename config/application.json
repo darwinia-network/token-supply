@@ -1,0 +1,33 @@
+{
+  "production": {
+    "ServerHost": "0.0.0.0:5344",
+    "EthRingBurn": "0x7550aab5DFda37f646b1a826F27e9D604D8D1579",
+    "TronRingBurn": "TDF92kbYFaEa8RAtvYKaeLwnhvULLHeiws",
+    "TokenRedeem": "0xea7938985898af7fd945b03b7bc2e405e744e913",
+    "DepositRedeem": "0x649fdf6ee483a96e020b889571e93700fbd82d88",
+    "TokenIssuing": "0x5f44dd8e59f56aa04fe54e95cc690560ae706b18",
+    "EthBridgerRelay": "0x5cde5Aafeb8E06Ce9e4F94c2406d3B6CB7098E49",
+    "Ring": "0x9469d013805bffb7d3debe5e7839237e535ec483",
+    "Kton": "0x9f284e1337a815fe77d2ff4ae46544645b20c5ff",
+    "TronRing": "TL175uyihLqQD656aFx3uhHYe1tyGkmXaW",
+    "TronKton": "TW3kTpVtYYQ5Ka1awZvLb9Yy6ZTDEC93dC",
+    "SubscanHost": "https://darwinia.api.subscan.io",
+    "ImplName": "Darwinia"
+  },
+  "dev": {
+    "ServerHost": "0.0.0.0:5344",
+    "EthRingBurn": "0x7550aab5DFda37f646b1a826F27e9D604D8D1579",
+    "TronRingBurn": "TDhG8mcJnmRC3oFkn6YoEFtapwv4Z6rNmN",
+    "TokenRedeem": "0x49262B932E439271d05634c32978294C7Ea15d0C",
+    "DepositRedeem": "0x6EF538314829EfA8386Fc43386cB13B4e0A67D1e",
+    "TokenIssuing": "0x98fAE9274562FE131e2CF5771ebFB0bB232aFd25",
+    "EthBridgerRelay": "0xD35Bb6F1bc1C84b53E0995c1830454AB7C4147f1",
+    "Ring": "0xb52FBE2B925ab79a821b261C82c5Ba0814AAA5e0",
+    "Kton": "0x1994100c58753793D52c6f457f189aa3ce9cEe94",
+    "TronRing": "TL175uyihLqQD656aFx3uhHYe1tyGkmXaW",
+    "TronKton": "TW3kTpVtYYQ5Ka1awZvLb9Yy6ZTDEC93dC",
+    "SubscanHost": "https://pangolin.api.subscan.io",
+    "ImplName": "Pangolin",
+    "EthereumBacking": "0xb2Bea2358d817dAE01B0FD0DC3aECB25910E65AA"
+  }
+}
