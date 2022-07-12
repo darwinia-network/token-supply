@@ -5,16 +5,16 @@ import (
 	middlewares "github.com/darwinia-network/token/middleware"
 	serverHttp "github.com/darwinia-network/token/server/routers/http"
 	"github.com/darwinia-network/token/util"
-	"github.com/urfave/cli/v2"
 	"github.com/gin-gonic/gin"
+	"github.com/urfave/cli/v2"
 	"net/http"
 	"runtime"
 )
 
-func Run(args []string)  error   {
+func Run(args []string) error {
 
-	app := &cli.App {
-		Name: "Darwinia-token",
+	app := &cli.App{
+		Name:    "Darwinia-token",
 		Version: "0.1",
 		Before: func(context *cli.Context) error {
 			runtime.GOMAXPROCS(runtime.NumCPU())
@@ -37,5 +37,3 @@ func setupRouter() (server *gin.Engine) {
 	serverHttp.Run(server)
 	return
 }
-
-

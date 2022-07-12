@@ -61,7 +61,6 @@ func KtonSupply() *Supply {
 	return kton.supply()
 }
 
-
 func (c *Currency) supply() *Supply {
 	var supply Supply
 	supply.MaxSupply = c.MaxSupply // 10 billion

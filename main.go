@@ -6,11 +6,9 @@ import (
 	"os"
 )
 
-func main()  {
+func main() {
 
-	if err := cmd.Run(os.Args); err != nil{
+	if err := cmd.Run(os.Args); err != nil {
 		log.Fatalln(err)
 	}
 }
-
-

@@ -19,7 +19,6 @@ func Run(server *gin.Engine) {
 	})
 	api.GET("supply", middlewares.PageCache(store, time.Minute, ringSupply()))
 
-
 }
 
 func JsonFormat(data interface{}, code int) map[string]interface{} {
