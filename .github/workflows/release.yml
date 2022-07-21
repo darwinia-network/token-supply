@@ -1,14 +1,13 @@
-name: Check pull request
+name: Release
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    tags:
+      - "v*"
 
 jobs:
-  check-build:
-    name: Check build
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -19,5 +18,8 @@ jobs:
       - name: install deps
         run: go mod download
 
-      - name: check build
+      - name: build
         run: go build -o ./token
+
+      - name: check output
+        run: tree ./token
