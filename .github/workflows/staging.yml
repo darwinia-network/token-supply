@@ -23,4 +23,4 @@ jobs:
         run: go build -o ./token
 
       - name: check output
-        run: tree ./token
+        run: ./token -h
