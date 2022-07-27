@@ -33,7 +33,7 @@ func Run(args []string) error {
 
 func setupRouter() (server *gin.Engine) {
 	server = gin.Default()
-	server.Use(middlewares.CORS())
+	server.Use(middlewares.CORS(), middlewares.Logger(), gin.Recovery())
 	serverHttp.Run(server)
 	return
 }
