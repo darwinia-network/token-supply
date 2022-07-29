@@ -29,18 +29,24 @@ type EtherscanResult struct {
 	TimeStamp       string   `json:"timeStamp"`
 }
 
-func RingEthSupply(contract string) *big.Int {
+func RingEthSupply(contract string) (*big.Int, error) {
 	w := web3.New("eth")
 	var e EthResponse
-	_ = w.Call(&e, contract, "totalSupply()")
-	return util.U256(e.Result)
+	err := w.Call(&e, contract, "totalSupply()")
+	if err != nil{
+		return nil, err
+	}
+	return util.U256(e.Result), nil
 }
 
-func RingEthBalance(contract, address string) *big.Int {
+func RingEthBalance(contract, address string) (*big.Int, error) {
 	w := web3.New("eth")
 	var e EthResponse
-	_ = w.Call(&e, contract, "balanceOf(address)", util.TrimHex(address))
-	return util.U256(e.Result)
+	err := w.Call(&e, contract, "balanceOf(address)", util.TrimHex(address))
+	if err != nil{
+		return nil, err
+	}
+	return util.U256(e.Result), nil
 }
 
 func EtherscanLog(start, to int64, address string, methods ...string) (*Etherscan, error) {

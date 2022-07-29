@@ -6,6 +6,7 @@ import (
 	"net/http"
 )
 
+
 func ringSupply() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		supply := token.RingSupply()

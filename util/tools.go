@@ -37,16 +37,19 @@ func ToString(i interface{}) string {
 	return val
 }
 
-func UnmarshalAny(r interface{}, raw interface{}) {
+func UnmarshalAny(r interface{}, raw interface{}) error {
+	var err error
 	switch raw := raw.(type) {
 	case string:
-		_ = json.Unmarshal([]byte(raw), &r)
+		err = json.Unmarshal([]byte(raw), &r)
 	case []uint8:
-		_ = json.Unmarshal(raw, &r)
+		err = json.Unmarshal(raw, &r)
 	default:
 		b, _ := json.Marshal(raw)
-		_ = json.Unmarshal(b, r)
+		err = json.Unmarshal(b, r)
 	}
+
+	return err
 }
 
 // Convert int64, uint64, float64, string to int, return 0 if other types

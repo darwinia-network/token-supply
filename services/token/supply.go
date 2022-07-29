@@ -12,6 +12,11 @@ import (
 	"sync"
 )
 
+// note: Due to unstable network may be failed to fetch token balance
+// so returning last successful supplied balance to front-end
+var latestRingSupply Supply
+var latestKtonSupply Supply
+
 type Supply struct {
 	CirculatingSupply decimal.Decimal `json:"circulatingSupply"`
 	TotalSupply       decimal.Decimal `json:"totalSupply"`
@@ -49,7 +54,12 @@ func RingSupply() *Supply {
 		"Tron":     {"TDWzV6W1L1uRcJzgg2uKa992nAReuDojfQ", "TSu1fQKFkTv95U312R6E94RMdixsupBZDS", "TTW2Vpr9TCu6gxGZ1yjwqy7R79hEH8iscC"},
 		"Ethereum": {"0x5FD8bCC6180eCd977813465bDd0A76A5a9F88B47", "0xfA4FE04f69F87859fCB31dF3B9469f4E6447921c", "0x7f23e4a473db3d11d11b43d90b34f8a778753e34", "0x7f23e4a473db3d11d11b43d90b34f8a778753e34"},
 	}
-	return ring.supply()
+	supply, err := ring.supply()
+	if err != nil{
+		return &latestRingSupply
+	}
+	latestRingSupply = *supply
+	return  &latestRingSupply
 }
 
 func KtonSupply() *Supply {
@@ -58,32 +68,45 @@ func KtonSupply() *Supply {
 		EthContract:  config.Cfg.Kton,
 		TronContract: config.Cfg.TronKton,
 	}
-	return kton.supply()
+	supply, err := kton.supply()
+	if err != nil{
+		return &latestKtonSupply
+	}
+	latestKtonSupply = *supply
+	return  &latestKtonSupply
 }
 
-func (c *Currency) supply() *Supply {
+func (c *Currency) supply() (*Supply, error) {
 	var supply Supply
 	supply.MaxSupply = c.MaxSupply // 10 billion
 	wg := sync.WaitGroup{}
 	wg.Add(4)
+	var err error
 	go func() {
-		ethSupply := c.ethSupply()
+		ethSupply, er := c.ethSupply()
+		if er != nil{
+			err = er
+			wg.Done()
+			return
+		}
 		supply.CirculatingSupply = supply.CirculatingSupply.Add(ethSupply.CirculatingSupply)
 		supply.Details = append(supply.Details, ethSupply)
 		wg.Done()
 	}()
 	go func() {
 		tronSupply := c.tronSupply()
-		supply.CirculatingSupply = supply.CirculatingSupply.Add(tronSupply.CirculatingSupply)
-		supply.Details = append(supply.Details, tronSupply)
+		if tronSupply.CirculatingSupply.GreaterThan(decimal.NewFromInt(0)){
+			supply.CirculatingSupply = supply.CirculatingSupply.Add(tronSupply.CirculatingSupply)
+			supply.Details = append(supply.Details, tronSupply)
+		}
 		wg.Done()
 	}()
 	go func() {
-		supply.TreasuryBalance = c.TreasuryBalance(100, 0, "system")
+		supply.TreasuryBalance, err = c.TreasuryBalance(100, 0, "system")
 		wg.Done()
 	}()
 	go func() {
-		supply.TotalSupply, supply.BondLockBalance = c.TotalSupply()
+		supply.TotalSupply, supply.BondLockBalance, err = c.TotalSupply()
 		wg.Done()
 	}()
 	wg.Wait()
@@ -100,29 +123,31 @@ func (c *Currency) supply() *Supply {
 
 	supply.CirculatingSupply = supply.TotalSupply.Sub(supply.BondLockBalance).Sub(supply.TreasuryBalance).
 		Sub(supply.CirculatingSupply)
-	return &supply
+	return &supply, err
 }
 
-func (c *Currency) ethSupply() *SupplyDetail {
+func (c *Currency) ethSupply() (*SupplyDetail, error) {
 	var supply SupplyDetail
 	supply.Precision = 18
 	precision := decimal.New(1, int32(supply.Precision))
-
-	capDecimal := decimal.NewFromBigInt(parallel.RingEthSupply(c.EthContract), 0).Div(precision)
+	s, err := parallel.RingEthSupply(c.EthContract)
+	if err != nil{
+		return nil, err
+	}
+	capDecimal := decimal.NewFromBigInt(s, 0).Div(precision)
 	supply.Network = "Ethereum"
 	supply.Contract = c.EthContract
 	supply.CirculatingSupply = capDecimal.Sub(supply.filterBalance(c.FilterAddress).Div(precision))
 	supply.TotalSupply = capDecimal
 	supply.Type = "erc20"
 
-	return &supply
+	return &supply, nil
 }
 
 func (c *Currency) tronSupply() *SupplyDetail {
 	var supply SupplyDetail
 	supply.Precision = 18
 	precision := decimal.New(1, int32(supply.Precision))
-
 	capDecimal := decimal.NewFromBigInt(parallel.RingTronSupply(c.TronContract), 0).Div(precision)
 	supply.Contract = c.TronContract
 	supply.Network = "Tron"
@@ -133,7 +158,7 @@ func (c *Currency) tronSupply() *SupplyDetail {
 	return &supply
 }
 
-func (c *Currency) TreasuryBalance(pageSize, pageIndex int64, filter string) decimal.Decimal {
+func (c *Currency) TreasuryBalance(pageSize, pageIndex int64, filter string) (decimal.Decimal, error) {
 	type AccountDetail struct {
 		Balance     decimal.Decimal `json:"balance"`
 		BalanceLock decimal.Decimal `json:"balance_lock"`
@@ -155,8 +180,10 @@ func (c *Currency) TreasuryBalance(pageSize, pageIndex int64, filter string) dec
 	b, _ := json.Marshal(params)
 	var res AccountTokenRes
 	data, _ := util.PostWithJson(fmt.Sprintf("%s/api/scan/accounts", config.Cfg.SubscanHost), bytes.NewReader(b))
-	util.UnmarshalAny(&res, data)
-
+	err := util.UnmarshalAny(&res, data)
+	if err != nil{
+		return decimal.Decimal{}, err
+	}
 	var token decimal.Decimal
 
 	for _, a := range res.Data.List {
@@ -165,10 +192,10 @@ func (c *Currency) TreasuryBalance(pageSize, pageIndex int64, filter string) dec
 		}
 		// kton has not treasure
 	}
-	return token
+	return token, nil
 }
 
-func (c *Currency) TotalSupply() (decimal.Decimal, decimal.Decimal) {
+func (c *Currency) TotalSupply() (decimal.Decimal, decimal.Decimal, error) {
 	type TokenDetail struct {
 		TotalIssuance       decimal.Decimal `json:"total_issuance"`
 		TokenDecimals       int             `json:"token_decimals"`
@@ -181,10 +208,13 @@ func (c *Currency) TotalSupply() (decimal.Decimal, decimal.Decimal) {
 	}
 	var res SubscanTokenRes
 	b, _ := util.HttpGet(fmt.Sprintf("%s/api/scan/token", config.Cfg.SubscanHost))
-	util.UnmarshalAny(&res, b)
+	err := util.UnmarshalAny(&res, b)
+	if err != nil{
+		return decimal.Decimal{}, decimal.Decimal{}, err
+	}
 	detail := res.Data.Detail[strings.ToUpper(c.Code)]
 	return detail.TotalIssuance.Div(decimal.New(1, int32(detail.TokenDecimals))),
-		detail.BondedLockedBalance.Div(decimal.New(1, int32(detail.TokenDecimals)))
+		detail.BondedLockedBalance.Div(decimal.New(1, int32(detail.TokenDecimals))), nil
 }
 
 func (s *SupplyDetail) filterBalance(filterAddress map[string][]string) decimal.Decimal {
@@ -198,7 +228,11 @@ func (s *SupplyDetail) filterBalance(filterAddress map[string][]string) decimal.
 			case "Tron":
 				sum = sum.Add(decimal.NewFromBigInt(parallel.RingTronBalance(s.Contract, util.TrxBase58toHexAddress(address)), 0))
 			case "Ethereum":
-				sum = sum.Add(decimal.NewFromBigInt(parallel.RingEthBalance(s.Contract, address), 0))
+				s, err := parallel.RingEthBalance(s.Contract, address)
+				if err != nil{
+					return
+				}
+				sum = sum.Add(decimal.NewFromBigInt(s, 0))
 				fmt.Println(sum, address)
 			}
 		}(address)
