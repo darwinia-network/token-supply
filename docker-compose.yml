@@ -1,0 +1,18 @@
+version: "2.4"
+
+services:
+  darwinia-token: &app_base
+    image: darwinia/token
+    build: .
+    environment:
+      ETHSCAN_KEY: ''
+      INFURA: ''
+      SUBSCAN_API_KEY: ''
+      GIN_MODE: 'release'
+    ports:
+      - '5344:5344'
+    networks:
+      - app_net
+networks:
+  app_net:
+    external: true
