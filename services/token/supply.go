@@ -54,8 +54,8 @@ func RingSupply() *Supply {
 		"Tron":     {"TDWzV6W1L1uRcJzgg2uKa992nAReuDojfQ", "TSu1fQKFkTv95U312R6E94RMdixsupBZDS", "TTW2Vpr9TCu6gxGZ1yjwqy7R79hEH8iscC"},
 		"Ethereum": {"0x5FD8bCC6180eCd977813465bDd0A76A5a9F88B47", "0xfA4FE04f69F87859fCB31dF3B9469f4E6447921c", "0x7f23e4a473db3d11d11b43d90b34f8a778753e34", "0x7f23e4a473db3d11d11b43d90b34f8a778753e34"},
 	}
-	supply, err := ring.supply()
-	if err != nil{
+	supply, errFlag := ring.supply()
+	if errFlag != false{
 		return &latestRingSupply
 	}
 	latestRingSupply = *supply
@@ -68,24 +68,24 @@ func KtonSupply() *Supply {
 		EthContract:  config.Cfg.Kton,
 		TronContract: config.Cfg.TronKton,
 	}
-	supply, err := kton.supply()
-	if err != nil{
+	supply, errFlag := kton.supply()
+	if errFlag != false{
 		return &latestKtonSupply
 	}
 	latestKtonSupply = *supply
 	return  &latestKtonSupply
 }
 
-func (c *Currency) supply() (*Supply, error) {
+func (c *Currency) supply() (*Supply, bool) {
 	var supply Supply
 	supply.MaxSupply = c.MaxSupply // 10 billion
 	wg := sync.WaitGroup{}
 	wg.Add(4)
-	var err error
+	errflag := false
 	go func() {
 		ethSupply, er := c.ethSupply()
 		if er != nil{
-			err = er
+			errflag = true
 			wg.Done()
 			return
 		}
@@ -102,11 +102,19 @@ func (c *Currency) supply() (*Supply, error) {
 		wg.Done()
 	}()
 	go func() {
+		var err error
 		supply.TreasuryBalance, err = c.TreasuryBalance(100, 0, "system")
+		if err != nil{
+			errflag = true
+		}
 		wg.Done()
 	}()
 	go func() {
+		var err error
 		supply.TotalSupply, supply.BondLockBalance, err = c.TotalSupply()
+		if err != nil{
+			errflag = true
+		}
 		wg.Done()
 	}()
 	wg.Wait()
@@ -123,7 +131,10 @@ func (c *Currency) supply() (*Supply, error) {
 
 	supply.CirculatingSupply = supply.TotalSupply.Sub(supply.BondLockBalance).Sub(supply.TreasuryBalance).
 		Sub(supply.CirculatingSupply)
-	return &supply, err
+	if  supply.CirculatingSupply.LessThan(decimal.NewFromInt(0)){
+		errflag = false
+	}
+	return &supply, errflag
 }
 
 func (c *Currency) ethSupply() (*SupplyDetail, error) {
