@@ -52,7 +52,7 @@ func RingSupply() *Supply {
 	}
 	ring.FilterAddress = map[string][]string{
 		"Tron":     {"TDWzV6W1L1uRcJzgg2uKa992nAReuDojfQ", "TSu1fQKFkTv95U312R6E94RMdixsupBZDS", "TTW2Vpr9TCu6gxGZ1yjwqy7R79hEH8iscC"},
-		"Ethereum": {"0x5FD8bCC6180eCd977813465bDd0A76A5a9F88B47", "0xfA4FE04f69F87859fCB31dF3B9469f4E6447921c", "0x7f23e4a473db3d11d11b43d90b34f8a778753e34", "0x7f23e4a473db3d11d11b43d90b34f8a778753e34"},
+		"Ethereum": {"0x5FD8bCC6180eCd977813465bDd0A76A5a9F88B47", "0xfA4FE04f69F87859fCB31dF3B9469f4E6447921c"},
 	}
 	supply, errFlag := ring.supply()
 	if errFlag != false{
@@ -129,8 +129,7 @@ func (c *Currency) supply() (*Supply, bool) {
 		}
 	}
 
-	supply.CirculatingSupply = supply.TotalSupply.Sub(supply.BondLockBalance).Sub(supply.TreasuryBalance).
-		Sub(supply.CirculatingSupply)
+	// fix adding CirculatingSupply with other chains todo
 	if  supply.CirculatingSupply.LessThan(decimal.NewFromInt(0)){
 		errflag = false
 	}
