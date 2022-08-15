@@ -153,11 +153,18 @@ func (c *Currency) supply() (*Supply, bool) {
 		}
 	}
 
+
+
 	// crab CirculatingSupply  xring  todo
 	supply.DarwiniaCirculatingSupply = supply.TotalSupply.Sub(supply.TreasuryBalance).Sub(supply.BondLockBalance).
 		Sub(supply.BackingBalance).Sub(supply.ReservedBalance)
 	supply.CirculatingSupply = supply.CirculatingSupply.Add(supply.DarwiniaCirculatingSupply).
 		Add(supply.EthCirculatingSupply).Add(supply.TronCirculatingSupply)
+
+	// warning: http request failed would derive wrong balance once in a while.
+	if supply.CirculatingSupply.LessThan(decimal.NewFromInt(0)){
+		errflag = true
+	}
 	return &supply, errflag
 }
 
