@@ -11,7 +11,7 @@ func PostWithJson(url string, body io.Reader) ([]byte, error) {
 	client := &http.Client{}
 	req, _ := http.NewRequest("POST", url, body)
 	req.Header.Set("Content-Type", "application/json")
-	apiKey := GetEnv("X-API-KEY", "310748a3f0dc493783e4a44a17348f1b")
+	apiKey := GetEnv("X-API-KEY", "")
 	if apiKey != ""{
 		req.Header.Set("X-API-Key", apiKey)
 	}
