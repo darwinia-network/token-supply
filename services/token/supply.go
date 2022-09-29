@@ -21,6 +21,7 @@ var latestKtonSupply Supply
 type Supply struct {
 	CirculatingSupply                decimal.Decimal `json:"circulatingSupply" :"circulating_supply"`
 	TotalSupply                      decimal.Decimal `json:"totalSupply" :"total_supply"`
+	DarwiniaTotalSupply              decimal.Decimal `json:"darwinia_total_supply"`
 	EthCirculatingSupply             decimal.Decimal `json:"eth_circulating_supply" :"eth_circulating_supply"`
 	TronCirculatingSupply            decimal.Decimal `json:"tron_circulating_supply" :"tron_circulating_supply"`
 	DarwiniaCirculatingSupply        decimal.Decimal `json:"darwinia_circulating_supply"`
@@ -59,7 +60,7 @@ func RingSupply() *Supply {
 	ring.FilterAddress = map[string][]string{
 		"Tron":     {"TDWzV6W1L1uRcJzgg2uKa992nAReuDojfQ", "TSu1fQKFkTv95U312R6E94RMdixsupBZDS", "TTW2Vpr9TCu6gxGZ1yjwqy7R79hEH8iscC"},
 		"Ethereum": {},
-		"Backing":  {"2qeMxq616BhswyueZhqkyWntaMt8QXshns9rBbmWBs1k9G4V"},
+		"Backing":  {"2qeMxq616BhswyueZhqkyWntaMt8QXshns9rBbmWBs1k9G4V","0xD1B10B114f1975d8BCc6cb6FC43519160e2AA978"},
 		"Reserved":  {"2rNgQRqCQ6U9UHHvjVBfvo22sJRLD5md7TcXDrZSVfxetx1J", "2rGKMBpMitW18S2Y4Jvcai9DnKz8rNGU7z1XC2Aq14u1RY6N"},
 	}
 
@@ -100,6 +101,7 @@ func (c *Currency) supply() (*Supply, bool) {
 		}
 		supply.EthCirculatingSupply = supply.EthCirculatingSupply.Add(ethSupply.CirculatingSupply)
 		supply.Details = append(supply.Details, ethSupply)
+
 		wg.Done()
 	}()
 	go func() {
@@ -107,6 +109,7 @@ func (c *Currency) supply() (*Supply, bool) {
 		if tronSupply.CirculatingSupply.GreaterThan(decimal.NewFromInt(0)){
 			supply.TronCirculatingSupply = supply.TronCirculatingSupply.Add(tronSupply.CirculatingSupply)
 			supply.Details = append(supply.Details, tronSupply)
+
 		}
 		wg.Done()
 	}()
@@ -120,7 +123,7 @@ func (c *Currency) supply() (*Supply, bool) {
 	}()
 	go func() {
 		var err error
-		supply.TotalSupply, supply.BondLockBalance, err = c.TotalSupply()
+		supply.DarwiniaTotalSupply, supply.BondLockBalance, err = c.TotalSupply()
 		if err != nil{
 			errflag = true
 		}
@@ -143,6 +146,14 @@ func (c *Currency) supply() (*Supply, bool) {
 	}()
 	wg.Wait()
 
+
+	//  totalSupply  = darwinia totalSupply + eth totalSupply + tron totalSupply
+	supply.TotalSupply = supply.DarwiniaTotalSupply
+	for _, detailSupply := range supply.Details{
+		supply.TotalSupply = supply.TotalSupply.Add(detailSupply.TotalSupply)
+	}
+
+
 	if supply.MaxSupply.IsZero() {
 		if c.Code == "kton" {
 			supply.MaxSupply = supply.TotalSupply
@@ -156,7 +167,7 @@ func (c *Currency) supply() (*Supply, bool) {
 
 
 	// crab CirculatingSupply  xring  todo
-	supply.DarwiniaCirculatingSupply = supply.TotalSupply.Sub(supply.TreasuryBalance).Sub(supply.BondLockBalance).
+	supply.DarwiniaCirculatingSupply = supply.DarwiniaTotalSupply.Sub(supply.TreasuryBalance).Sub(supply.BondLockBalance).
 		Sub(supply.BackingBalance).Sub(supply.ReservedBalance)
 	supply.CirculatingSupply = supply.CirculatingSupply.Add(supply.DarwiniaCirculatingSupply).
 		Add(supply.EthCirculatingSupply).Add(supply.TronCirculatingSupply)
@@ -165,6 +176,8 @@ func (c *Currency) supply() (*Supply, bool) {
 	if supply.CirculatingSupply.LessThan(decimal.NewFromInt(0)){
 		errflag = true
 	}
+
+
 	return &supply, errflag
 }
 
