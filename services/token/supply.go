@@ -21,7 +21,6 @@ var latestKtonSupply Supply
 type Supply struct {
 	CirculatingSupply                decimal.Decimal `json:"circulatingSupply" :"circulating_supply"`
 	TotalSupply                      decimal.Decimal `json:"totalSupply" :"total_supply"`
-	DarwiniaTotalSupply              decimal.Decimal `json:"darwinia_total_supply"`
 	EthCirculatingSupply             decimal.Decimal `json:"eth_circulating_supply" :"eth_circulating_supply"`
 	TronCirculatingSupply            decimal.Decimal `json:"tron_circulating_supply" :"tron_circulating_supply"`
 	DarwiniaCirculatingSupply        decimal.Decimal `json:"darwinia_circulating_supply"`
@@ -60,7 +59,8 @@ func RingSupply() *Supply {
 	ring.FilterAddress = map[string][]string{
 		"Tron":     {"TDWzV6W1L1uRcJzgg2uKa992nAReuDojfQ", "TSu1fQKFkTv95U312R6E94RMdixsupBZDS", "TTW2Vpr9TCu6gxGZ1yjwqy7R79hEH8iscC"},
 		"Ethereum": {},
-		"Backing":  {"2qeMxq616BhswyueZhqkyWntaMt8QXshns9rBbmWBs1k9G4V","0xD1B10B114f1975d8BCc6cb6FC43519160e2AA978"},
+		"Treasure": {"2qeMxq616BhswywHP1MzwCEKX1ibEQ4DKJw95NppvWxy2Fka"},
+		"Backing":  {"2qeMxq616BhswyueZhqkyWntaMt8QXshns9rBbmWBs1k9G4V"},
 		"Reserved":  {"2rNgQRqCQ6U9UHHvjVBfvo22sJRLD5md7TcXDrZSVfxetx1J", "2rGKMBpMitW18S2Y4Jvcai9DnKz8rNGU7z1XC2Aq14u1RY6N"},
 	}
 
@@ -115,7 +115,7 @@ func (c *Currency) supply() (*Supply, bool) {
 	}()
 	go func() {
 		var err error
-		supply.TreasuryBalance, err = c.TreasuryBalance(100, 0, "system")
+		supply.TreasuryBalance, err = c.DarwiniaFilterBalance(c.FilterAddress["Treasure"])
 		if err != nil{
 			errflag = true
 		}
@@ -123,7 +123,7 @@ func (c *Currency) supply() (*Supply, bool) {
 	}()
 	go func() {
 		var err error
-		supply.DarwiniaTotalSupply, supply.BondLockBalance, err = c.TotalSupply()
+		supply.TotalSupply, supply.BondLockBalance, err = c.TotalSupply()
 		if err != nil{
 			errflag = true
 		}
@@ -147,11 +147,6 @@ func (c *Currency) supply() (*Supply, bool) {
 	wg.Wait()
 
 
-	//  totalSupply  = darwinia totalSupply + eth totalSupply + tron totalSupply
-	supply.TotalSupply = supply.DarwiniaTotalSupply
-	for _, detailSupply := range supply.Details{
-		supply.TotalSupply = supply.TotalSupply.Add(detailSupply.TotalSupply)
-	}
 
 
 	if supply.MaxSupply.IsZero() {
@@ -167,10 +162,10 @@ func (c *Currency) supply() (*Supply, bool) {
 
 
 	// crab CirculatingSupply  xring  todo
-	supply.DarwiniaCirculatingSupply = supply.DarwiniaTotalSupply.Sub(supply.TreasuryBalance).Sub(supply.BondLockBalance).
+	supply.DarwiniaCirculatingSupply = supply.TotalSupply.Sub(supply.TreasuryBalance).Sub(supply.BondLockBalance).
 		Sub(supply.BackingBalance).Sub(supply.ReservedBalance)
 	supply.CirculatingSupply = supply.CirculatingSupply.Add(supply.DarwiniaCirculatingSupply).
-		Add(supply.EthCirculatingSupply).Add(supply.TronCirculatingSupply)
+		 Add(supply.TronCirculatingSupply)
 
 	// warning: http request failed would derive wrong balance once in a while.
 	if supply.CirculatingSupply.LessThan(decimal.NewFromInt(0)){
@@ -213,53 +208,6 @@ func (c *Currency) tronSupply() *SupplyDetail {
 	return &supply
 }
 
-func (c *Currency) TreasuryBalance(pageSize, pageIndex int64, filter string) (decimal.Decimal, error) {
-	type AccountDetail struct {
-		Address     string          `json:"address,omitempty"`
-		Balance     decimal.Decimal `json:"balance" json:"balance"`
-		BalanceLock decimal.Decimal `json:"balance_lock" json:"balance_lock"`
-		KtonBalance decimal.Decimal `json:"kton_balance" json:"kton_balance"`
-		KtonLock    decimal.Decimal `json:"kton_lock" json:"kton_lock"`
-	}
-	type AccountTokenRes struct {
-		Data struct {
-			Count int             `json:"count"`
-			List  []AccountDetail `json:"list"`
-		} `json:"data"`
-	}
-
-	params := make(map[string]interface{})
-	params["row"] = pageSize
-	params["page"] = pageIndex
-	params["filter"] = filter
-
-	b, _ := json.Marshal(params)
-	var res AccountTokenRes
-	data, _ := util.PostWithJson(fmt.Sprintf("%s/api/scan/accounts", config.Cfg.SubscanHost), bytes.NewReader(b))
-	err := util.UnmarshalAny(&res, data)
-	if err != nil{
-		return decimal.Decimal{}, err
-	}
-	var token decimal.Decimal
-
-	for _, a := range res.Data.List {
-		if c.Code == "ring" {
-			skip := false
-			for _, filterAddres := range c.FilterAddress["Backing"]{
-				if a.Address == filterAddres{
-					skip = true
-					break
-				}
-			}
-			if skip{
-				continue
-			}
-			token = token.Add(a.Balance).Add(a.BalanceLock)
-		}
-		// kton has not treasure
-	}
-	return token, nil
-}
 
 func (c *Currency) TotalSupply() (decimal.Decimal, decimal.Decimal, error) {
 	type TokenDetail struct {
