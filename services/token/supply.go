@@ -115,7 +115,6 @@ func (c *Currency) supply() (*Supply, bool) {
 	}()
 	go func() {
 		var err error
-
 		supply.TreasuryBalance, err = c.DarwiniaFilterBalance(c.FilterAddress["Treasure"])
 		if err != nil{
 			errflag = true
@@ -209,53 +208,6 @@ func (c *Currency) tronSupply() *SupplyDetail {
 	return &supply
 }
 
-func (c *Currency) TreasuryBalance(pageSize, pageIndex int64, filter string) (decimal.Decimal, error) {
-	type AccountDetail struct {
-		Address     string          `json:"address,omitempty"`
-		Balance     decimal.Decimal `json:"balance" json:"balance"`
-		BalanceLock decimal.Decimal `json:"balance_lock" json:"balance_lock"`
-		KtonBalance decimal.Decimal `json:"kton_balance" json:"kton_balance"`
-		KtonLock    decimal.Decimal `json:"kton_lock" json:"kton_lock"`
-	}
-	type AccountTokenRes struct {
-		Data struct {
-			Count int             `json:"count"`
-			List  []AccountDetail `json:"list"`
-		} `json:"data"`
-	}
-
-	params := make(map[string]interface{})
-	params["row"] = pageSize
-	params["page"] = pageIndex
-	params["filter"] = filter
-
-	b, _ := json.Marshal(params)
-	var res AccountTokenRes
-	data, _ := util.PostWithJson(fmt.Sprintf("%s/api/scan/accounts", config.Cfg.SubscanHost), bytes.NewReader(b))
-	err := util.UnmarshalAny(&res, data)
-	if err != nil{
-		return decimal.Decimal{}, err
-	}
-	var token decimal.Decimal
-
-	for _, a := range res.Data.List {
-		if c.Code == "ring" {
-			skip := false
-			for _, filterAddres := range c.FilterAddress["Backing"]{
-				if a.Address == filterAddres{
-					skip = true
-					break
-				}
-			}
-			if skip{
-				continue
-			}
-			token = token.Add(a.Balance).Add(a.BalanceLock)
-		}
-		// kton has not treasure
-	}
-	return token, nil
-}
 
 func (c *Currency) TotalSupply() (decimal.Decimal, decimal.Decimal, error) {
 	type TokenDetail struct {
