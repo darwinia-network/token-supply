@@ -21,15 +21,21 @@ var latestKtonSupply Supply
 type Supply struct {
 	CirculatingSupply                decimal.Decimal `json:"circulatingSupply" :"circulating_supply"`
 	TotalSupply                      decimal.Decimal `json:"totalSupply" :"total_supply"`
-	EthCirculatingSupply             decimal.Decimal `json:"eth_circulating_supply" :"eth_circulating_supply"`
-	TronCirculatingSupply            decimal.Decimal `json:"tron_circulating_supply" :"tron_circulating_supply"`
-	DarwiniaCirculatingSupply        decimal.Decimal `json:"darwinia_circulating_supply"`
-	BondLockBalance                  decimal.Decimal `json:"bond_lock_balance" :"bond_lock_balance"`
-	TreasuryBalance                  decimal.Decimal `json:"treasury_balance" :"treasury_balance"`
-	BackingBalance                   decimal.Decimal `json:"backing_balance" :"backing_balance"`
-	ReservedBalance                  decimal.Decimal `json:"reserved_balance" :"special_balance"`
 	MaxSupply                        decimal.Decimal `json:"maxSupply" :"max_supply"`
 	Details                          []*SupplyDetail `json:"details" :"details"`
+}
+
+
+type BalanceDetail struct {
+
+	TotalSupply                      decimal.Decimal `json:"totalSupply" :"total_supply"`
+	EthCirculatingSupply             decimal.Decimal `json:"ethCirculatingSupply" :"eth_circulating_supply"`
+	TronCirculatingSupply            decimal.Decimal `json:"tronCirculatingSupply" :"tron_circulating_supply"`
+	DarwiniaCirculatingSupply        decimal.Decimal `json:"darwiniaCirculatingSupply"`
+	BondLockBalance                  decimal.Decimal `json:"bondLockBalance" :"bond_lock_balance"`
+	TreasuryBalance                  decimal.Decimal `json:"TreasuryBalance" :"treasury_balance"`
+	BackingBalance                   decimal.Decimal `json:"backingBalance" :"backing_balance"`
+	ReservedBalance                  decimal.Decimal `json:"reservedBalance" :"special_balance"`
 }
 
 type SupplyDetail struct {
@@ -88,6 +94,8 @@ func KtonSupply() *Supply {
 
 func (c *Currency) supply() (*Supply, bool) {
 	var supply Supply
+	var balanceDetail BalanceDetail
+
 	supply.MaxSupply = c.MaxSupply // 10 billion
 	wg := sync.WaitGroup{}
 	wg.Add(5)
@@ -99,7 +107,7 @@ func (c *Currency) supply() (*Supply, bool) {
 			wg.Done()
 			return
 		}
-		supply.EthCirculatingSupply = supply.EthCirculatingSupply.Add(ethSupply.CirculatingSupply)
+		balanceDetail.EthCirculatingSupply = balanceDetail.EthCirculatingSupply.Add(ethSupply.CirculatingSupply)
 		supply.Details = append(supply.Details, ethSupply)
 
 		wg.Done()
@@ -107,7 +115,7 @@ func (c *Currency) supply() (*Supply, bool) {
 	go func() {
 		tronSupply := c.tronSupply()
 		if tronSupply.CirculatingSupply.GreaterThan(decimal.NewFromInt(0)){
-			supply.TronCirculatingSupply = supply.TronCirculatingSupply.Add(tronSupply.CirculatingSupply)
+			balanceDetail.TronCirculatingSupply = balanceDetail.TronCirculatingSupply.Add(tronSupply.CirculatingSupply)
 			supply.Details = append(supply.Details, tronSupply)
 
 		}
@@ -115,7 +123,7 @@ func (c *Currency) supply() (*Supply, bool) {
 	}()
 	go func() {
 		var err error
-		supply.TreasuryBalance, err = c.DarwiniaFilterBalance(c.FilterAddress["Treasure"])
+		balanceDetail.TreasuryBalance, err = c.DarwiniaFilterBalance(c.FilterAddress["Treasure"])
 		if err != nil{
 			errflag = true
 		}
@@ -123,7 +131,7 @@ func (c *Currency) supply() (*Supply, bool) {
 	}()
 	go func() {
 		var err error
-		supply.TotalSupply, supply.BondLockBalance, err = c.TotalSupply()
+		balanceDetail.TotalSupply, balanceDetail.BondLockBalance, err = c.TotalSupply()
 		if err != nil{
 			errflag = true
 		}
@@ -132,12 +140,12 @@ func (c *Currency) supply() (*Supply, bool) {
 
 	go func() {
 		var err error
-		supply.BackingBalance, err = c.DarwiniaFilterBalance(c.FilterAddress["Backing"])
+		balanceDetail.BackingBalance, err = c.DarwiniaFilterBalance(c.FilterAddress["Backing"])
 		if err != nil{
 			errflag = true
 			return
 		}
-		supply.ReservedBalance,err = c.DarwiniaFilterBalance(c.FilterAddress["Reserved"])
+		balanceDetail.ReservedBalance,err = c.DarwiniaFilterBalance(c.FilterAddress["Reserved"])
 		if err != nil{
 			errflag = true
 		}
@@ -146,8 +154,7 @@ func (c *Currency) supply() (*Supply, bool) {
 	}()
 	wg.Wait()
 
-
-
+	supply.TotalSupply = balanceDetail.TotalSupply
 
 	if supply.MaxSupply.IsZero() {
 		if c.Code == "kton" {
@@ -162,10 +169,10 @@ func (c *Currency) supply() (*Supply, bool) {
 
 
 	// crab CirculatingSupply  xring  todo
-	supply.DarwiniaCirculatingSupply = supply.TotalSupply.Sub(supply.TreasuryBalance).Sub(supply.BondLockBalance).
-		Sub(supply.BackingBalance).Sub(supply.ReservedBalance)
-	supply.CirculatingSupply = supply.CirculatingSupply.Add(supply.DarwiniaCirculatingSupply).
-		 Add(supply.TronCirculatingSupply)
+	balanceDetail.DarwiniaCirculatingSupply = balanceDetail.TotalSupply.Sub(balanceDetail.TreasuryBalance).Sub(balanceDetail.BondLockBalance).
+		Sub(balanceDetail.BackingBalance).Sub(balanceDetail.ReservedBalance)
+	supply.CirculatingSupply = supply.CirculatingSupply.Add(balanceDetail.DarwiniaCirculatingSupply).
+		 Add(balanceDetail.TronCirculatingSupply)
 
 	// warning: http request failed would derive wrong balance once in a while.
 	if supply.CirculatingSupply.LessThan(decimal.NewFromInt(0)){
